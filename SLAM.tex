@@ -1,0 +1,133 @@
+\documentclass{notes}
+\coursename{Logical Relations Mini-Course}
+\lecnumber{1}
+\title{SLAM Calculus Notes}
+\author{Andrew K. Hirsch}
+
+\newcommand{\unitty}{\textsf{unit}}
+\newcommand{\unit}{\ensuremath{(\,)}}
+\newcommand{\app}[2]{\ensuremath{#1\mkern3mu#2}}
+\newcommand{\pair}[2]{(#1, #2)}
+\newcommand{\projl}[1]{\ensuremath{\app{\pi_1}{#1}}}
+\newcommand{\projr}[1]{\ensuremath{\app{\pi_2}{#1}}}
+\newcommand{\inl}[1]{\ensuremath{\app{\textsf{inl}}{#1}}}
+\newcommand{\inr}[1]{\ensuremath{\app{\textsf{inr}}{#1}}}
+\newcommand{\match}[5]{\ensuremath{\textsf{case}(#1, #2.#3, #4.#5)}}
+\newcommand{\lam}[2]{\ensuremath{\lambda #1.\,#2}}
+\newcommand{\prot}[2]{\ensuremath{#1 \mathrel{\triangleleft} #2}}
+\newcommand{\subtyp}[2]{\ensuremath{#1 \mathrel{<\!:} #2}}
+
+\begin{document}
+\maketitle
+
+\begin{syntax}
+  \categoryFromSet{\ell}{\mathcal{L}}
+  \note{$\mathcal{L}$ is a preorder with $\sqsubseteq$}
+  \category[Pretypes]{A}
+  \alternative{\unit}
+  \alternative{\tau_1 \times \tau_2}
+  \alternative{\tau_1 + \tau_2}
+  \alternative{\tau_1 \to \tau_2}
+  \category[Types]{\tau, \sigma}
+  \alternative{A^\ell}
+  \category[Expressions]{e}
+  % Each alternative is introduced on its own line.
+  \alternative{x}
+  \alternative{\unit}
+  \alternative{\pair{e_1}{e_2}}
+  \alternative{\projl{e}}
+  \alternative{\projr{e}}
+  \alternative{\inl{e}}
+  \alternative{\inr{e}}
+  \alternative{\match{e}{x}{e_1}{y}{e_2}}
+  \alternative{\lam{x}{e}}
+  \alternative{\app{e_1}{e_2}}
+\end{syntax}
+
+$$\prot{\ell}{A^{\ell'}} \overset{\triangle}{\iff} \ell \sqsubseteq \ell'$$
+
+\begin{mathpar}
+  \infer{
+    \ell \sqsubseteq \ell'
+  }{
+    \subtyp{A^\ell}{A^{\ell'}}
+  }\and
+  \infer{
+    \subtyp{\tau_1}{\tau_2}\\
+    \subtyp{\sigma_1}{\sigma_2}
+  }{
+    \subtyp{\tau_1 \times \sigma_1}{\tau_2 \times \sigma_2}
+  }\and
+  \infer{
+    \subtyp{\tau_1}{\tau_2}\\
+    \subtyp{\sigma_1}{\sigma_2}
+  }{
+    \subtyp{\tau_1 + \sigma_1}{\tau_2 + \sigma_2}
+  }\and
+  \infer{
+    \subtyp{\tau_2}{\tau_1}\\
+    \subtyp{\sigma_1}{\sigma_2}
+  }{
+    \subtyp{\tau_1 \to \sigma_1}{\tau_2 \to \sigma_2}
+  }
+\end{mathpar}
+
+\begin{mathpar}
+  \infer{x : \tau \in \Gamma}{\Gamma \vdash x : \tau}\and
+  \infer{
+    \Gamma \vdash e : \tau\\
+    \subtyp{\tau}{\sigma}
+  }{
+    \Gamma \vdash e : \sigma
+  }\\
+  \infer{
+    \Gamma \vdash e_1 : \tau_1\\
+    \Gamma \vdash e_2 : \tau_2
+  } {
+    \Gamma \vdash \pair{e_1}{e_2} : (\tau_1 \times \tau_2)^\ell
+  }\and
+  \infer{
+    \Gamma \vdash e : (\tau_1 \times \tau_2)^\ell\\
+    \prot{\ell}{\tau_1}
+  } {
+    \Gamma \vdash \projl{e} : \tau_1
+  }\and
+  \infer{
+    \Gamma \vdash e : (\tau_1 \times \tau_2)^\ell\\
+    \prot{\ell}{\tau_2}
+  }{
+    \Gamma \vdash \projr{e} : \tau_2
+  }\\
+  \infer{
+    \Gamma \vdash e : \tau_1
+  }{
+    \Gamma \vdash \inl{e} : (\tau_1 + \tau_2)^\ell
+  }\and
+  \infer{
+    \Gamma \vdash e : \tau_2
+  }{
+    \Gamma \vdash \inr{e} : (\tau_1 + \tau_2)^\ell
+  }\and
+  \infer{
+    \Gamma \vdash e : (\tau_1 + \tau_2)^\ell\\
+    \Gamma, x : \tau_1 \vdash e_1 : \tau\\
+    \Gamma, y : \tau_2 \vdash e_2 : \tau\\
+    \prot{\ell}{\tau}
+  }{
+    \Gamma \vdash \match{e}{x}{e_1}{y}{e_2} : \tau
+  }\\
+  \infer{
+    \Gamma, x : \tau \vdash e : \sigma
+  }{
+    \Gamma \vdash \lam{x}{e} : (\tau \to \sigma)^\ell
+  }\and
+  \infer{
+    \Gamma \vdash e_1 : (\tau \to \sigma)^\ell\\
+    \Gamma \vdash e_2 : \tau\\
+    \prot{\ell}{\sigma}
+  }{
+    \Gamma \vdash \app{e_1}{e_2} : \sigma
+  }
+\end{mathpar}
+
+\end{document}

@@ -1,0 +1,202 @@
+\documentclass{notes}
+\coursename{Logical Relations Mini-Course}
+\lecnumber{1}
+\title{Type System Fundamentals}
+\author{Michael Piskozub}
+
+\begin{document}
+\maketitle
+
+\newcommand{\proves}{\vdash}
+
+\newcommand{\fst}[1]{\text{fst} \: #1}
+\newcommand{\snd}[1]{\text{snd} \: #1}
+\newcommand{\inl}[1]{\text{inl} \: #1}
+\newcommand{\inr}[1]{\text{inr} \: #1}
+\newcommand{\case}[3]{\text{case} \: (#1, x . #2, y . #3)}
+\newcommand{\unit}{()}
+\newcommand{\matchdone}[1]{\text{match} \: #1 \: \text{done}}
+
+\newcommand{\betaequiv}{\equiv_{\beta}}
+\newcommand{\etaequiv}{\equiv_{\eta}}
+
+\newcommand{\RuleTemplate}[5]{
+  \ensuremath{%
+    \infer[#1]{#3}{#4}%
+%    \if\relax\detokenize{#1}\relax
+%      \infer{#3}{#4}
+%    \else
+%      {\textsc{\rulefiguresize[#1]}}~\infer{#3}{#4}
+%    \fi%
+  }%
+  \if\relax\detokenize{#2}\relax\else\label{#2}\fi%
+  \if\relax\detokenize{#5}\relax\else~\text{#5}\fi
+}
+
+\newcommand{\Rule}[4][]{%
+  \if\relax\detokenize{#2}\relax
+    \RuleTemplate{}{}{#3}{#4}{#1}
+  \else
+    \RuleTemplate{#2}{rule:#2}{#3}{#4}{#1}
+  \fi}
+\newcommand{\NlRule}[4][]{\RuleTemplate{#2}{}{#3}{#4}{#1}}
+
+\begin{syntax}
+  \category[Expressions]{e}
+  % Each alternative is introduced on its own line.
+  \alternative{x}
+  \alternative{\lambda x . e}
+  \alternative{e_1 e_2}
+  \alternative{(e_1, e_2)}
+  \alternative{\fst e}
+  \alternative{\snd e}
+  \alternative{\inl e}
+  \alternative{\inr e}
+  \alternative{\case{e_1}{e_2}{e_3}}
+  \alternative{\unit}
+  \alternative{\matchdone e}
+\end{syntax}
+
+\vspace{0.3in}
+
+\bf{Typing Rules:}
+\begin{mathpar}
+  \Rule{Axiom}{x : \tau \in \Gamma}{\Gamma \proves x : \tau}
+  \and
+  \Rule{arrow - I}{
+    \Gamma, x : \tau \proves e : \sigma
+  }{
+    \Gamma \proves \lambda x . e : \tau \rightarrow \sigma
+  }
+  \and
+  \Rule{arrow - E}{
+    \Gamma \proves e_1 : \tau \rightarrow \sigma \\ \Gamma \proves e_2 : \tau
+  }{
+    \Gamma \proves e_1 e_2 : \sigma
+  }
+  \and
+  \\
+  \Rule{x - I}{
+    \Gamma \proves e_1 : \tau
+    \\
+    \Gamma \proves e_2 : \sigma
+  }{
+    \Gamma \proves (e_1, e_2) : \tau \times \sigma
+  }
+  \and
+  \Rule{x - E1}{
+    \Gamma \proves e : \tau \times \sigma
+  }{
+    \Gamma \proves \fst{e} : \tau
+  }
+  \and
+  \Rule{x - E2}{
+    \Gamma \proves e : \tau \times \sigma
+  }{
+    \Gamma \proves \snd{e} : \sigma
+  }
+  \and
+  \\
+  \Rule{+ - I1}{
+    \Gamma \proves e : \tau
+  }{
+    \Gamma \proves \inl{e} : \tau + \sigma
+  }
+  \and
+  \Rule{+ - I2}{
+    \Gamma \proves e : \sigma
+  }{
+    \Gamma \proves \inr{e} : \tau + \sigma
+  }
+  \and
+  \Rule{+ - E}{
+    \Gamma \proves e_1 : \tau + \sigma
+    \\
+    \Gamma, x : \tau \proves e_2 : \rho
+    \\
+    \Gamma, y : \sigma \proves e_3 : \rho
+  }{
+    \Gamma \proves \case{e_1}{e_2}{e_3} : \rho
+  }
+  \and
+  \\
+  \Rule{unit - I}{ }{
+    \Gamma \proves \unit : unit
+  }
+  \and
+  \Rule{void - E}{
+    \Gamma \proves e : void
+  }{
+    \Gamma \proves \matchdone{e} : \tau
+  }
+\end{mathpar}
+\begin{nb}
+  There is a duality of types here. Products are duals of coproducts and $void$ is
+  the dual of $unit$. For any dual types, the introduction forms of one correspond 
+  to the elimination forms of the other, and vice versa.
+\end{nb}
+
+\vspace{0.3in}
+
+\bf{$\beta$ and $\eta$ Equivalence:}
+
+\begin{nb}
+  $\beta$ and $\eta$ equivalences come directly from introduction and
+  elimination rules.
+  \\
+  $\beta$ equivalence: Apply elimination directly to an introduction form.
+  \\
+  $\eta$ equivalence: Apply introduction directly to an elimination form.
+\end{nb}
+
+\begin{mathpar}
+  (\lambda x . e_1) e_2 \betaequiv e_1[x \mapsto e_2]
+  \and
+  f \etaequiv \lambda x . (f \: x)
+
+  \and
+  \\
+  \fst (e_1, e_2) \betaequiv e_1
+  \and
+  \snd (e_1, e_2) \betaequiv e_2
+  \and
+  (\fst{e}, \snd{e}) \etaequiv e
+\end{mathpar}
+
+\begin{nb}
+  Since product types have two elimination rules, there are two $\beta$ equivalences.
+  Likewise, since product types have one introduction rule, there is one $\eta$ rule.
+\end{nb}
+
+\begin{mathpar}
+  \case{\inl{e_1}}{e_2}{e_3} \betaequiv e_2[x \mapsto e_1]
+  \and
+  \case{\inr{e_1}}{e_2}{e_3} \betaequiv e_3[y \mapsto e_1]
+  \and
+  \\
+  \case{e_1}{\inl{x}}{\inr{y}} \etaequiv e_1
+\end{mathpar}
+
+\begin{nb}
+  Note that the continuation of a case expression is $embedded$ in the case
+  expression. So, the introduction rules must be embedded in the continuations
+  of the case expression in the $\eta$ equivalence.
+\end{nb}
+
+\begin{mathpar}
+  e \etaequiv \unit
+  \and
+  \text{C}[\matchdone{e}] \betaequiv \matchdone{e}
+\end{mathpar}
+
+\begin{nb}
+  The $\eta$ rule says that if you have $e : unit$, then that it is $\eta$
+  equivalent to the introduction form.
+  \\
+  In the $\beta$ rule, $\bf{C}[.]$ is an evaluation context. Something of type 
+  $void$ cannot be built, so if there is an expression $e : void$ in your
+  computation, we can skip the entire computation and just give back 
+  $\bf{match}$ $e$ $\bf{done}$.
+\end{nb}
+
+\end{document}

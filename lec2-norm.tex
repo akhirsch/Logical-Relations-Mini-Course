@@ -1,0 +1,184 @@
+\documentclass{notes}
+\coursename{Logical Relations Mini-Course}
+\lecnumber{2}
+\title{Normalization}
+\author{Gan Shen}
+
+\begin{document}
+\maketitle
+
+\section{Introduction}
+
+In this lecture, we talked about how to prove \emph{normalization} for simply typed lambda calculus, which involves using the proof technique of \emph{logical relations}.
+
+\section{Simply Typed Lambda Calculus}
+
+Here's the definition of the language:
+%
+\begin{syntax}
+  \category[Types]{\tau, \sigma}
+  \alternative{A}
+  \alternative{\tau \rightarrow \sigma}
+
+  \category[Expressions]{e}
+  \alternative{x}
+  \alternative{\lambda x.\,e}
+  \alternative{e_1 \; e_2}
+\end{syntax}
+%
+\begin{mathpar}
+  \infer{x : \tau \in \Gamma}{\Gamma \vdash x : \tau} \quad (\textsc{Axiom}) \and
+  \infer{\Gamma, x : \tau \vdash e : \sigma}{\Gamma \vdash \lambda x.\, e : \tau \rightarrow \sigma} \quad (\rightarrow_I) \and
+  \infer{\Gamma \vdash e_1 : \tau \rightarrow \sigma \\ \Gamma \vdash e_2 : \tau}{\Gamma \vdash e_1 \; e_2 : \sigma} \quad (\rightarrow_E)
+\end{mathpar}
+%
+For evaluation rules, we assume full $\beta$ reduction.
+
+\section{Normalization}
+
+First, we need to define \emph{normal forms}, which are expressions that can not be reduced further.
+%
+Along the way, we also need to define \emph{neutral forms}, which are expressions whose reduction is blocked by a variable.
+%
+Together, they are defined as follows:
+%
+\begin{mathpar}
+  \infer{}{\vdash_{ne} x} \and
+  \infer{\vdash_{ne} e_1 \\ \vdash_{nf} e_2}{\vdash_{ne} e_1 \; e_2} \and
+  \infer{\vdash_{ne} e}{\vdash_{nf} e} \and
+  \infer{\vdash_{nf} e}{\vdash_{nf} \lambda x.\, e}
+\end{mathpar}
+%
+We can then state the normalization theorem using normal forms:
+%
+\begin{thm}[Normalization]
+  If $\Gamma \vdash e : \tau$ then $e \downarrow$, where
+  \begin{align*}
+    e \downarrow n & \triangleq e \longrightarrow_{\beta}^* n \ \wedge \ \vdash_{nf} n \\
+    e \downarrow   & \triangleq \exists n.\, e \downarrow n
+  \end{align*}
+\end{thm}
+%
+\noindent A straightforward induction on the typing derivation would not go through as the induction hypothesis is not strong enough.
+%
+To this end, we define, for each type $\tau$, an unary proposition $R$ on expressions:
+%
+\begin{align*}
+  R_{\tau}(e)                 & : \mathrm{Prop} \\
+  R_{A}(e)                    & \triangleq e \downarrow \\
+  R_{\tau \rightarrow \sigma}(e) & \triangleq e \downarrow \ \wedge \ \forall e'.\, R_{\tau}(e') \Longrightarrow R_{\sigma}(e \; e')
+\end{align*}
+Next, we prove some lemmas about $R_{\tau}(e)$:
+%
+\begin{lem} \label{lem1}
+  If $R_{\tau}(e)$ then $e \downarrow$.
+\end{lem}
+%
+\begin{proof}
+  Immediate from the definition.
+\end{proof}
+%
+\begin{lem}
+  If $e \rightarrow_{\beta} e'$ and $R_{\tau}(e)$ then $R_{\tau}(e')$.
+\end{lem}
+%
+\begin{proof}
+  \textcolor{blue}{Left as homework.}
+\end{proof}
+%
+\begin{lem} \label{lem3}
+  For any $\tau$, $R_{\tau}(x)$.
+\end{lem}
+%
+\begin{proof}
+  \textcolor{blue}{Left as homework.}
+\end{proof}
+%
+\noindent Next, we introduce the concept of ``good'' substitution~\footnote{That's how Andrew described it in the class, and I couldn't think of a more descriptive name.} and semantic typing:
+%
+\begin{defn}[Good Substitution]
+  A parallel substitution is a map from variables to expressions of the form $[x \mapsto e_1, y \mapsto e_2, ...]$.
+  To apply such a substitution $\gamma$ to an expression $e$, we write $e[\gamma]$.
+  A substitution is good with respect to some $\Gamma$, written as $\Gamma \vDash \gamma$, if it maps each variable in the domain of $\Gamma$ to an expresson in $R$:
+  \[ \Gamma \vDash \gamma \triangleq \forall x : \tau \in \Gamma.\: R_{\tau}(x[\gamma]) \]
+\end{defn}
+%
+\begin{defn}[Semantic Typing]
+  Written as $\Gamma \vDash e : \tau$, defined as follows:
+  \begin{align*}
+    \Gamma \vDash e : \tau & \triangleq \forall \gamma.\: \Gamma \vDash \gamma \Longrightarrow R_{\tau}(e[\gamma])
+  \end{align*}
+\end{defn}
+%
+\noindent The fundamental theorem of the logical relation that we need to prove is:
+%
+\begin{thm}[Fundamental]
+  If $\Gamma \vdash e : \tau$ then $\Gamma \vDash e : \tau$.
+\end{thm}
+%
+\begin{proof}
+  \textcolor{blue}{Left as homework. (\emph{hint}: by induction on the typing derivation.)}
+\end{proof}
+%
+\noindent With the fundamental theorem and all the lemmas, we can now prove the normalization theorem:
+%
+\begin{proof}
+  Since $\Gamma \vdash e : \tau$, we have $\Gamma \vDash e : \tau$ by the fundamental theorem.
+  Thus, for any $\gamma$, if $\Gamma \vDash \gamma$ then $R_{\tau}(e[\gamma])$.
+  By Lemma \ref{lem3}, we know that $\Gamma \vDash {id}_{{dom}(\Gamma)}$, where ${id}_{{dom(\Gamma)}}$ is an identity substituition that maps all the variables in the domain of $\Gamma$ to themselves.
+  So we have $R_{\tau}(e[{id}_{{dom}(\Gamma)}])$ and since $e[{id}_{{dom}(\Gamma)}] = e$, so we have $R_{\tau}(e)$.
+  By Lemma \ref{lem1}, we then have $e \downarrow$.
+\end{proof}
+
+\section{Call-By-Value Logical Relation}
+
+Now let's consider normalization for simply typed lambda calculus with a call-by-value semantics.
+%
+The same proof technique of logical relations still applies here but with some modifications.
+%
+First, let's write down our language:
+%
+\begin{syntax}
+  \category[Types]{\tau, \sigma}
+  \alternative{\textsf{unit}}
+  \alternative{\tau \rightarrow \sigma}
+
+  \category[Expressions]{e}
+  \alternative{x}
+  \alternative{\lambda x.\,e}
+  \alternative{e_1 \; e_2}
+  \alternative{()}
+
+  \category[Values]{v}
+  \alternative{()}
+  \alternative{\lambda x.\, e}
+\end{syntax}
+%
+We introduce unit into our language and remove the base type $A$.
+%
+We don't need neutral and normal forms any more because every function is a value.
+%
+This time, our logical relation is separated into two parts --- a value relation $V$ and an expression relation $E$:
+%
+\begin{align*}
+  V_{\textsf{unit}}(v) & \triangleq v = () \\
+  V_{\tau \rightarrow \sigma}(v) & \triangleq v = \exists e.\ \lambda x.\, e \ \wedge \ \forall v'.\ V_{\tau}(v') \Longrightarrow E_{\sigma}(e \; v') \\
+  E_{\tau}(e) & \triangleq \exists v.\ e \longrightarrow_{\beta}^* v \ \wedge \ V_{\tau}(v)
+\end{align*}
+%
+We can then define ``good'' substitution and semantic typing as:
+%
+\begin{align*}
+  \Gamma \vdash \gamma & \triangleq \forall x : \tau \in \Gamma.\ V_{\tau}(v[\gamma]) \\
+  \Gamma \vDash e : \tau & \triangleq \forall \gamma.\: \Gamma \vDash \gamma \Longrightarrow E_{\tau}(e[\gamma])
+\end{align*}
+%
+If we extend our language with product types, all we need to do is add a new case to the value relation:
+%
+\begin{align*}
+  V_{\tau \times \sigma}(e) \triangleq e = (v_1, v_2) \ \wedge \ V_\tau(v_1) \ \wedge V_\tau(v_2)
+\end{align*}
+%
+\textcolor{blue}{Homework: Add sum types to the call-by-value variant logical relation and prove normalization.}
+
+\end{document}

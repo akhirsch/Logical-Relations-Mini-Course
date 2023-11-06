@@ -162,14 +162,14 @@ This time, our logical relation is separated into two parts --- a value relation
 %
 \begin{align*}
   V_{\textsf{unit}}(v) & \triangleq v = () \\
-  V_{\tau \rightarrow \sigma}(v) & \triangleq v = \exists e.\ \lambda x.\, e \ \wedge \ \forall v'.\ V_{\tau}(v') \Longrightarrow E_{\sigma}(e \; v') \\
+  V_{\tau \rightarrow \sigma}(v) & \triangleq \exists e.\, v=\ \lambda x.\, e \ \wedge \ \forall v'.\ V_{\tau}(v') \Longrightarrow E_{\sigma}(e[x\mapsto v']) \\
   E_{\tau}(e) & \triangleq \exists v.\ e \longrightarrow_{\beta}^* v \ \wedge \ V_{\tau}(v)
 \end{align*}
 %
 We can then define ``good'' substitution and semantic typing as:
 %
 \begin{align*}
-  \Gamma \vdash \gamma & \triangleq \forall x : \tau \in \Gamma.\ V_{\tau}(v[\gamma]) \\
+  \Gamma \vDash \gamma & \triangleq \forall x : \tau \in \Gamma.\ V_{\tau}(\gamma(x)) \\
   \Gamma \vDash e : \tau & \triangleq \forall \gamma.\: \Gamma \vDash \gamma \Longrightarrow E_{\tau}(e[\gamma])
 \end{align*}
 %

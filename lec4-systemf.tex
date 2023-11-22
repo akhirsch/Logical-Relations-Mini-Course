@@ -1,0 +1,141 @@
+\documentclass{notes}
+\coursename{Logical Relations Mini-Course}
+\lecnumber{4}
+\title{System F and parametricity}
+\author{Andrey Yao}
+
+\newcommand{\unit}{()}
+\newcommand{\Unit}{\texttt{unit}}
+
+\newcommand{\V}{\mathcal{V}}
+\newcommand{\E}{\mathcal{E}}
+
+\newcommand{\bequiv}{\equiv_{\beta}}
+
+\begin{document}
+\maketitle
+
+\section{Introduction}
+
+\textit{[begins with a fable from Reynold on representation invariance and construction of the complex numberss]}
+
+In this lecture, we talked about the idea of parametricity. In system F, the polymorphism is \textit{parametric}, in the sense that a generic function has to work ``the same way'' uniformly across all types. This surprisingly allows us to talk about properties of all inhabitants of certain polymorphic types, such as the type $\forall X.\;X\to X$. We developed a binary logical relation for system F, based on the idea of a ``compatible relation'', which are relations that respect beta-equivalence. The parametricity theorem follows from the fundamental theorem of logical relations in this case, and as a corollary we can prove some ``free theorems'', such as some of those from the Wadler paper ``Theorems for free!''. Some examples include that the type $\forall X.\;X\to X$ has only one inhabitant up to beta-eta equivalence, etc.
+
+\section{System F}
+
+The syntax of the language is STLC extended with two new expression constructs: type abstraction $\Lambda X.\;e$ and type application $e[\tau]$. The type level syntax is augmented with a new ``universal type'', $\forall X.\;\tau$. We don't introduce product types here for simplicity. Also, later we will see products are encodeable in System F.
+%
+\begin{syntax}
+  \category[Types]{\tau}
+  \alternative{\Unit}
+  \alternative{\tau_1 \rightarrow \tau_2}
+  \alternative{X}
+  \alternative{\forall X.\; \tau}
+
+  \category[Expressions]{e}
+  \alternative{\unit}
+  \alternative{x}
+  \alternative{\lambda x.\,e}
+  \alternative{e_1 \; e_2}
+  \alternative{\Lambda X.\; e}
+  \alternative{e[\tau]}
+\end{syntax}
+%
+
+For the typing judgements, we need to keep track of another context $\Delta$, which contains a set of free type variables that one is allowed to use in the context $\Gamma$:
+\begin{mathpar}
+  \infer{\;}{\Delta \vdash \Unit} \quad (\textsc{Unit}) \and
+  \infer{X \in \Delta}{\Delta \vdash X} \quad (\textsc{TypeVar}) \and
+  \infer{\Delta \vdash \tau_1 \\ \Delta \vdash \tau_2}{\Delta \vdash \tau_1 \to \tau_2} \quad (\textsc{Arrow}) \and
+  \infer{\Delta,X \vdash \tau}{\Delta \vdash \forall X.\;\tau} \quad (\textsc{Forall}) \and
+\end{mathpar}
+
+To type check expressions, we need both $\Delta;\Gamma$:
+
+\begin{mathpar}
+  \infer{\;}{\Delta;\Gamma \vdash \unit:\Unit} (\textsc{Unit}) \and
+  \infer{\Delta \vdash \Gamma \\ x : \tau \in \Gamma}{\Delta;\Gamma \vdash x : \tau} \quad (\textsc{Axiom}) \and
+  \infer{\Delta \vdash \Gamma \\ \Gamma, x : \tau_1 \vdash e : \tau_2}{\Delta;\Gamma \vdash \lambda x:\tau_1.\, e : \tau_1 \rightarrow \tau_2} \quad (\rightarrow_I) \and
+  \infer{\Delta;\Gamma \vdash e_1 : \tau_1 \to \tau_2 \\ \Delta;\Gamma \vdash e_2 : \tau_1}{\Delta;\Gamma \vdash e_1 \; e_2 : \tau_2} \quad (\rightarrow_E) \and
+  \infer{\Delta,X \vdash \Gamma \\ \Gamma \vdash e : \tau}{\Delta;\Gamma \vdash \Lambda X.\, e : \forall X.\;\tau} \quad (\forall_I) \and
+  \infer{\Delta;\Gamma \vdash e : \forall X.\;\tau}{\Delta;\Gamma \vdash e[\tau'] : \tau[X\mapsto \tau']} \quad (\forall_E)
+\end{mathpar}
+
+\section{Operational semantics}
+It's really just a CBV semantics similar to that of STLC. We add an additional rule to deal with concretizing the type variables used in the type annotations in $e$:
+\begin{mathpar}
+  \infer{\;}{(\Lambda X.\;e)[\tau]\to_\beta e[X\to \tau]}
+\end{mathpar}
+
+\section{Logical relations}
+
+Before defining a logical relations on system F, we need to develop the following notion:
+
+\begin{defn}[Compatible relation]
+  A binary relation $R$ on the set of expressions is called compatible if:
+  \[\textbf{forall}(e_1,e_2,e_1',e_2'), e_1\bequiv e_1'\land e_2\bequiv e_2'\land R(e_1, e_2)\implies R(e_1',e_2')\]
+  More informally, a compatible relation is one that is invariant under beta-redution, or beta-equivalence.
+\end{defn}
+
+We also use $\rho$ to denote a partial mapping from type variables to compatible relations.
+
+Now we can define the logical relations:
+\begin{align*}
+  \V_\rho(X)(v_1,v_2) &\triangleq \rho(X)(v_1,v_2)\\
+  \V_\rho(\Unit)(v_1,v_2) &\triangleq v_1=v_2=\unit\\
+  \V_\rho(\tau_1\to\tau_2)(v_1,v_2) &\triangleq \textbf{exists}(x,y,e_1e_2),\;v_1=\lambda x.\;e_1\land v_2=\lambda y.\;e_2\land\\&\quad\;\textbf{forall}(v_1',v_2'),\,V_\rho(\tau_1)(v_1',v_2')\implies \E_\rho(\tau_2)(e_1[x\mapsto v_1'],e_2[y\mapsto v_2'])\\
+  \V_\rho(\forall X.\tau)(v_1,v_2) &\triangleq \textbf{exists}(X,e_1,e_2),\;v_1=\Lambda X.\;e_1\land v_2=\Lambda X.\;e_2\land \textbf{forall}(\text{compatible}\;R),\,\E_{\rho[X\mapsto R]}(e_1,e_2)\\
+  \noalign{\smallskip} \hline \noalign{\smallskip}
+  \E_\rho(\tau)(e_1,e_2) &\triangleq \textbf{exists}(v_1,v_2),\;e_1\to^*v_1\land e_2\to^*v_2\land \V_\rho(\tau)(v_1,v_2)
+\end{align*}
+
+As a sanity check, we can try to show this following result:
+\begin{prop}[Polymorphic identity related to itself]
+  \[\V_\rho(\forall X.\;X\to X)(\Lambda X.\;\lambda x:X.\;x,\;\;\Lambda X.\;\lambda x:X.\;x)\]
+\end{prop}
+
+\begin{proof}
+  Just unfold the definitions, and you will find that eventually you want to prove that: given any $\rho$ and compatible relation $R$, $\V_{\rho[X\mapsto R]}(X\to X)(\lambda x:X.x,\;\lambda x:X.x)$ holds. The rest is straightforward.
+\end{proof}
+
+\begin{defn}[Good relation substitution]
+  \[\Delta\vDash \rho \triangleq \Delta\subseteq \operatorname{dom}(\rho)\]
+\end{defn}
+
+\begin{defn}[Semantically related expression substitution]
+  Two parallel substitution $\gamma_1,\gamma_2$ (partial maps from expression variables to expressions) are semantically related w.r.t. a context $\Gamma$ and a relation substitution $\rho$ when:
+  \[\Gamma\vDash_\rho \gamma_1\sim \gamma_2 \triangleq \textbf{forall} (x:\tau)\in \Gamma, \E_\rho(\tau)(\gamma_1(x),\gamma_2(x))\]
+\end{defn}
+
+\begin{defn}[Semantically related (in type $\tau$)]
+  \[\Delta;\Gamma\vDash e_1\sim e_2:\tau \triangleq \textbf{forall}(\rho,\gamma_1,\gamma_2),\;\Delta\vDash \rho\land \Gamma\vDash_\rho \gamma_1\sim\gamma_2\implies \E_\rho(\tau)(e_1[\gamma_1], e_2[\gamma_2])\]
+\end{defn}
+
+\begin{thm}[Parametricity]
+  \[\Delta;\Gamma\vdash e:\tau \implies \Delta;\Gamma\vDash e \sim e:\tau\]
+  This reads ``well-typed expressions are related to itself''
+\end{thm}
+
+\section{Homework}
+\subsection{Problem 1)}
+We can encode product types and pairs, projections into system F as follows:
+\begin{align*}
+  \tau_1\times \tau_2 &\triangleq \forall Z.\;(\tau_1\to\tau_2\to Z)\to Z\\
+  \texttt{pair} :\forall X\;Y.\;X\to Y\to X\times Y &\triangleq \Lambda X\;Y.\;\lambda x:X.\;\lambda y:Y.\;\Lambda Z.\;\lambda f:X\to Y\to Z.\;f\,x\,y\\
+  \texttt{fst}: \forall X\;Y.\;X\times Y\to X &\triangleq \Lambda X\;Y.\lambda p:X\times Y.\;p[X](\lambda x.\;\lambda y.x)
+\end{align*}
+
+\textit{Exercise:} Define the \texttt{snd} operator.
+
+\subsection{Problem 2)}
+Show that for any types $\tau_1,\tau_2$ and expressions $e_1,e_2$:
+\[\E_\rho(\tau_1\times \tau_2)(e_1,e_2) \iff (\E_\rho(\tau_1)(\texttt{fst}~e_1\sim \texttt{fst}~e_2)\land \E_\rho(\tau_2)(\texttt{snd}~e_1\sim \texttt{snd}~e_2))\]
+
+\section{Further readings}
+\begin{enumerate}
+  \item {Wadler: Theorems for free!}\;{https://dl.acm.org/doi/10.1145/99370.99404}
+\end{enumerate}
+
+
+
+\end{document}

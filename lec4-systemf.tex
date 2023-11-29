@@ -50,31 +50,42 @@ For the typing judgements, we need to keep track of another context $\Delta$, wh
   \infer{\Delta,X \vdash \tau}{\Delta \vdash \forall X.\;\tau} \quad (\textsc{Forall}) \and
 \end{mathpar}
 
+We can check well-formedness of contexts as well:
+\begin{mathpar}
+  \infer{ }{\Delta \vdash \cdot} \and
+  \infer{\Delta \vdash \Gamma\\\Delta \vdash \tau}{\Delta \vdash \Gamma, x : \tau}
+\end{mathpar}
+
 To type check expressions, we need both $\Delta;\Gamma$:
 
 \begin{mathpar}
-  \infer{\;}{\Delta;\Gamma \vdash \unit:\Unit} (\textsc{Unit}) \and
+  \infer{\Delta \vdash \Gamma}{\Delta;\Gamma \vdash \unit:\Unit} (\textsc{Unit}) \and
   \infer{\Delta \vdash \Gamma \\ x : \tau \in \Gamma}{\Delta;\Gamma \vdash x : \tau} \quad (\textsc{Axiom}) \and
-  \infer{\Delta \vdash \Gamma \\ \Gamma, x : \tau_1 \vdash e : \tau_2}{\Delta;\Gamma \vdash \lambda x:\tau_1.\, e : \tau_1 \rightarrow \tau_2} \quad (\rightarrow_I) \and
+  \infer{\Delta; \Gamma, x : \tau_1 \vdash e : \tau_2}{\Delta;\Gamma \vdash \lambda x:\tau_1.\, e : \tau_1 \rightarrow \tau_2} \quad (\rightarrow_I) \and
   \infer{\Delta;\Gamma \vdash e_1 : \tau_1 \to \tau_2 \\ \Delta;\Gamma \vdash e_2 : \tau_1}{\Delta;\Gamma \vdash e_1 \; e_2 : \tau_2} \quad (\rightarrow_E) \and
-  \infer{\Delta,X \vdash \Gamma \\ \Gamma \vdash e : \tau}{\Delta;\Gamma \vdash \Lambda X.\, e : \forall X.\;\tau} \quad (\forall_I) \and
+  \infer{\Delta, X; \Gamma \vdash e : \tau}{\Delta;\Gamma \vdash \Lambda X.\, e : \forall X.\;\tau} \quad (\forall_I) \and
   \infer{\Delta;\Gamma \vdash e : \forall X.\;\tau}{\Delta;\Gamma \vdash e[\tau'] : \tau[X\mapsto \tau']} \quad (\forall_E)
 \end{mathpar}
 
 \section{Operational semantics}
 It's really just a CBV semantics similar to that of STLC. We add an additional rule to deal with concretizing the type variables used in the type annotations in $e$:
 \begin{mathpar}
-  \infer{\;}{(\Lambda X.\;e)[\tau]\to_\beta e[X\to \tau]}
+  \infer{\;}{(\Lambda X.\;e)[\tau]\to_\beta e[X \mapsto \tau]}
 \end{mathpar}
 
 \section{Logical relations}
 
 Before defining a logical relations on system F, we need to develop the following notion:
 
-\begin{defn}[Compatible relation]
+\begin{defn}[Compatible relation (Old)]
   A binary relation $R$ on the set of expressions is called compatible if:
   \[\textbf{forall}(e_1,e_2,e_1',e_2'), e_1\bequiv e_1'\land e_2\bequiv e_2'\land R(e_1, e_2)\implies R(e_1',e_2')\]
   More informally, a compatible relation is one that is invariant under beta-redution, or beta-equivalence.
+\end{defn}
+
+\begin{defn}[Compatible Relation (CBV)]
+  A binary relation $R$ on the set of expressions is called \emph{compatible} if:
+  $$\forall e_1, e_2, R(e_1, e_2) \implies e_1~\text{is a value} \land e_2~\text{is a value}$$
 \end{defn}
 
 We also use $\rho$ to denote a partial mapping from type variables to compatible relations.
@@ -104,7 +115,7 @@ As a sanity check, we can try to show this following result:
 
 \begin{defn}[Semantically related expression substitution]
   Two parallel substitution $\gamma_1,\gamma_2$ (partial maps from expression variables to expressions) are semantically related w.r.t. a context $\Gamma$ and a relation substitution $\rho$ when:
-  \[\Gamma\vDash_\rho \gamma_1\sim \gamma_2 \triangleq \textbf{forall} (x:\tau)\in \Gamma, \E_\rho(\tau)(\gamma_1(x),\gamma_2(x))\]
+  \[\Gamma\vDash_\rho \gamma_1\sim \gamma_2 \triangleq \textbf{forall} (x:\tau)\in \Gamma, \V_\rho(\tau)(\gamma_1(x),\gamma_2(x))\]
 \end{defn}
 
 \begin{defn}[Semantically related (in type $\tau$)]
@@ -139,3 +150,8 @@ Show that for any types $\tau_1,\tau_2$ and expressions $e_1,e_2$:
 
 
 \end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% End:

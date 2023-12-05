@@ -1,0 +1,121 @@
+\documentclass{notes}
+\coursename{Logical Relations Mini-Course}
+\lecnumber{5}
+\title{Recursive Types and Step Indexing}
+\author{Shruti Gupta}
+
+\newcommand{\unit}{()}
+\newcommand{\Unit}{\texttt{unit}}
+
+\newcommand{\V}{\mathcal{V}}
+\newcommand{\E}{\mathcal{E}}
+
+\newcommand{\bequiv}{\equiv_{\beta}}
+
+\begin{document}
+\maketitle
+
+
+\section{Recursive types}
+
+The syntax of the language is further extended with two new expression constructs: roll $e$ and unroll $e$. The type level syntax is augmented with a new ``recursive type'', $\mu X.\;\tau$. 
+%
+\begin{syntax}
+  \category[Types]{\tau}
+  \alternative{\Unit}
+  \alternative{X}
+  \alternative{\tau_1 \rightarrow \tau_2}
+  \alternative{\tau_1 + \tau_2}
+  \alternative{\tau_1 \times \tau_2}
+  \alternative{\forall X.\; \tau}
+  \alternative{\mu X.\; \tau}
+
+  \category[Expressions]{e}
+  \alternative{\unit}
+  \alternative{x}
+  \alternative{\lambda x.\,e}
+  \alternative{e_1 \; e_2}
+  \alternative{\Lambda X.\; e}
+  \alternative{e[\tau]}
+  \alternative{roll\; e}
+  \alternative{unroll\; e}
+\end{syntax}
+%
+
+  
+Typing Rules:
+
+
+\begin{mathpar}
+  \infer{\Delta \vdash \Gamma}{\Delta;\Gamma \vdash \unit:\Unit} (\textsc{Unit}) \and
+  \infer{\Delta \vdash \Gamma \\ x : \tau \in \Gamma}{\Delta;\Gamma \vdash x : \tau} \quad (\textsc{Axiom}) \and
+  \infer{\Delta; \Gamma, x : \tau_1 \vdash e : \tau_2}{\Delta;\Gamma \vdash \lambda x:\tau_1.\, e : \tau_1 \rightarrow \tau_2} \quad (\rightarrow_I) \and
+  \infer{\Delta;\Gamma \vdash e_1 : \tau_1 \to \tau_2 \\ \Delta;\Gamma \vdash e_2 : \tau_1}{\Delta;\Gamma \vdash e_1 \; e_2 : \tau_2} \quad (\rightarrow_E) \and
+  \infer{\Delta, X; \Gamma \vdash e : \tau}{\Delta;\Gamma \vdash \Lambda X.\, e : \forall X.\;\tau} \quad (\forall_I) \and
+  \infer{\Delta;\Gamma \vdash e : \forall X.\;\tau}{\Delta;\Gamma \vdash e[\tau'] : \tau[X\mapsto \tau']} \quad (\forall_E) \and
+  \infer{\Delta; \Gamma \vdash e : \tau[ X \mapsto \mu X. \; \tau]}{\Delta;\Gamma \vdash roll \, e : \mu X.\;\tau} \quad (\mu_I) \and
+  \infer{\Delta;\Gamma \vdash e : \mu X.\;\tau}{\Delta;\Gamma \vdash unroll \, e : \tau[X\mapsto \mu X.\;\tau]} \quad (\mu_E)
+\end{mathpar}
+
+
+\section{Logical relations}
+
+Now, we are no longer in a place where everything is terminating. Below is a naive logical relation.
+
+
+ \[\V_\rho(\mu X.\; \tau)(v_1 \sim v_2) \triangleq \exists\; v_1', v_2'.\; v_1 = roll\; v_1' \land v_2 = roll\; v_2' \land  \V_\rho(\tau[X \mapsto \mu X.\;\tau]) (v_1' \sim v_2') \]
+
+
+The issue with the above relation is that it is not well founded. The type is not shrinking.
+
+We will introduce a step index to solve this problem, similar to fuel in Coq.
+\newline
+So, the logical relations can be defined as follows:\newline
+Here 0 represents a state where we have given up expanding and say we can't tell apart the program
+\begin{align*}
+  \V_\rho(\tau\; @\; 0)(v_1\sim v_2) &\triangleq \textbf{true} 
+  \\ 
+  \V_\rho(X\; @\; n)(v_1\sim v_2) &\triangleq \rho(X)(v_1,v_2)\\
+  \V_\rho(\Unit\; @\; n)(v_1\sim v_2) &\triangleq v_1=v_2=\unit\\
+  \V_\rho(\forall X.\;\tau\; @\; n)(v_1\sim v_2) &\triangleq \exists\; e_1,e_2.\;v_1=\Lambda X.\;e_1\land v_2=\Lambda X.\;e_2\land \forall (R\text{ compatible}) , \, \E_{\rho[X\mapsto R]}(\tau\; @\; n)(e_1 \sim e_2)\\
+  \V_\rho(\mu X.\;\tau\; @\; n)(v_1\sim v_2) &\triangleq \forall\; n'<n.\; \exists\; v_1', v_2'.\; v_1 = roll\; v_1' \land v_2 = roll\; v_2' \land  \V_\rho(\tau[X \mapsto \mu X.\;\tau \; @ \; n]) (v_1' \sim v_2')\\
+  \noalign{\smallskip} \hline \noalign{\smallskip}
+  \E_\rho(\tau\;@\;n)(e_1 \sim e_2) &\triangleq \forall \; v_1,v_2.\;e_1\downarrow v_1\land e_2\downarrow v_2\to \V_\rho(\tau\; @ \; n)(v_1\sim v_2)
+\end{align*}
+
+
+
+\begin{defn}[Good relation context]
+
+  \[\Delta\vDash \rho \xLeftrightarrow{\triangle} \Delta\subseteq \operatorname{dom}(\rho) \]
+\end{defn}
+
+\begin{defn}[Semantically related expression substitution with step indices]
+  Two parallel substitutions $\gamma_1,\gamma_2$ (partial maps from expression variables to expressions) are semantically related w.r.t. $\Delta ,\Gamma$ and a relation substitution $\rho$ when:
+  \[\Delta;\Gamma\vDash \gamma_1\sim \gamma_2 \xLeftrightarrow{\triangle} \forall \rho. \; \Delta \vDash_\rho \to \forall\; x: \tau \in \Gamma. \; \forall\; n.\; \V_\rho(\tau\;@\;n)(\gamma_1(x)\sim \gamma_2(x))\]
+\end{defn}
+
+\begin{defn}[Semantically related (in type $\tau$ with step indices)]
+  \[\Delta;\Gamma\vDash e_1\sim e_2:\tau \xLeftrightarrow{\triangle} \forall \rho. \; \Delta \vDash_\rho \to \forall\; \gamma_1, \gamma_2. \; \Delta; \Gamma \vDash \gamma_1, \gamma_2 \to \; \forall\; n.\; \E_\rho(\tau\;@\;n)(e_1\sim e_2)\]
+\end{defn}
+
+\begin{lem} [Monotonicity]
+\[\forall\; n, n'<n, e_1, e_2, \tau, \rho. \; \E_\rho (\tau\;@\;n')(e_1\sim e_2) \]
+This means we can give up sooner, i.e. say sooner that the programs are indistinguishable.
+\end{lem}
+\begin{thm}[Fundamental/Parametricity]
+  \[If \; \Delta;\Gamma\vdash e:\tau\; then \; \Delta ; \Gamma \vDash e \sim e:\tau\]
+  This reads ``well-typed expressions are related to itself''
+\end{thm}
+\begin{lem}
+  \[If \; \E_{\rho[X \mapsto \V_\rho (\tau\;@\;n)]}(\sigma\;@\;n) (e_1 \sim e_2)\; then \; \E_\rho (\sigma[X \mapsto \tau]\;@\;n) (e_1[X \mapsto \tau] \sim e_2[X \mapsto \tau]) \]
+\end{lem}
+\section{Homework}
+Prove the Theorem and Lemmas mentioned above
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% End:

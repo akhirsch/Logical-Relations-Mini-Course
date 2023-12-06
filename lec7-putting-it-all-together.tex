@@ -1,0 +1,162 @@
+\documentclass{notes}
+\coursename{Logical Relations Mini-Course}
+\lecnumber{5}
+\title{Putting It All Together}
+\author{Andrew K. Hirsch}
+
+\newcommand{\unit}{()}
+\newcommand{\Unit}{\texttt{unit}}
+
+\newcommand{\fun}[2]{\lambda\,#1.\;#2}
+\newcommand{\app}[2]{#1\;#2}
+\newcommand{\inl}[1]{\textsf{inl}(#1)}
+\newcommand{\inr}[1]{\textsf{inr}(#1)}
+\newcommand{\case}[5]{\textsf{case}(#1, #2.#3, #4.#5)}
+\newcommand{\new}[1]{\textsf{new}(#1)}
+\newcommand{\deref}[1]{\ensuremath{\mathord{!}e}}
+\newcommand{\assn}[2]{#1 \mathrel{\mathord{:}\!\mathord{=}} #2}
+\newcommand{\ptr}[1]{\textsf{ref}\;#1}
+\newcommand{\pc}{\textit{pc}}
+\newcommand{\dom}{\textrm{dom}}
+
+\newcommand{\V}{\mathcal{V}}
+\newcommand{\E}{\mathcal{E}}
+
+\newcommand{\bequiv}{\equiv_{\beta}}
+
+\begin{document}
+\maketitle
+
+In this lecture, I'm going to look at the language FG (based on the work of Rajani and Garg).
+I've simplified the language somewhat, but I've kept in enough complexity to force use to use several ideas.
+
+\begin{syntax}
+  \category[Expressions]{e}
+    \alternative{x} \alternative{\unit} \alternative{\fun{x}{e}} \alternative{\app{e_1}{e_2}} \\
+    \alternative{\inl{e}} \alternative{\inr{e}} \alternative{\case{e_1}{x}{e_2}{y}{e_3}}\\
+    \alternative{a} \alternative{\new{e}} \alternative{\deref{e}} \alternative{\assn{e_1}{e_2}}\\
+  \category[(Labeled) Types]{\tau, \sigma} \alternative{A^\ell}
+  \category[Unlabeled Types]{A} \alternative{\Unit} \alternative{\tau \xrightarrow{\ell} \sigma} \alternative{\tau + \sigma} \alternative{\ptr{\tau}}
+\end{syntax}
+
+We say that a type $\tau$ is \emph{protected at} $\ell$ and write $\tau \searrow \ell$ if $\tau = A^{\ell'}$ and $\ell \sqsubseteq \ell'$.
+
+
+\section{Goal}
+\label{sec:goal}
+
+We want to eventually prove the following theorem:
+\begin{thm}[Noninterference]
+  For any program $e$ such that $x : A^{\ell'} \diamond \pc \vdash e : (\Unit^\bot + \Unit^\bot)^\ell$, where $\ell' \not\sqsubseteq \ell$, and for any $v_1, v_2$ such that $\cdot \diamond \pc \vdash v_i : A^{\ell'}$, if both $e[x \mapsto v_1]$ and $e[x \mapsto v_2]$ terminate, than the produce the same value.
+\end{thm}
+
+In the face of effects, this gets harder.
+For instance, this program causes problems:
+$$\textsf{let}\; x = \new{0} \mathrel{\textsf{in}} \textsf{let}\; \_ = \case{s}{z_1}{\assn{x}{1}}{z_2}{\assn{x}{2}} \mathrel{\textsf{in}} \deref{x} = 1$$
+Now, we've leaked the value of the secret $b$, despite the fact that we don't ever directly use that value.
+
+In order to combat this, we add a special label $\pc$ to our judgment.
+This is just an information-flow label; however, its job is to constrain the effects in a program based on the control flow of the program that allowed us to get here.
+As you can see in the \textsc{case} rule below, when we look at the branches of a \textsf{case} expression we increase the $\pc$.
+When we assign to a reference, we ensure that the type we are assigning protects the $\pc$; thus, only high-security variables can be assigned after branching on high-security data.
+This would either prevent the assignment above, or it would prevent dereferencing the reference in order to compute a low-security result.
+
+Any proof of nonintereference is going to rely on the $\pc$ to do its job.
+We generally prove a separate lemma, known as \emph{containment}, which shows that the \pc is doing its job.
+In our case, the containment lemma is going to take the form of the fundamental theorem of a \emph{unary} relation.
+We will then define a \emph{binary} relation to express indistinguishability; however, this binary relation will appeal to the unary relation to ensure that the \pc is indeed doing its job.
+
+\section{Typing Rules}
+\label{sec:typing-rules}
+
+The judgment $\Gamma \diamond \pc \vdash e : \tau$ means that $e$ has type $\tau$ when $\Gamma$ describes the variables.
+
+\begin{mathpar}
+  \infer*[left=var]{ x : \tau \in \Gamma }{\Gamma \diamond \pc \vdash x : \tau}\and
+  \infer*[left=lam]{\Gamma, x : \tau \diamond \pc' \vdash e : \sigma}{\Gamma \diamond \pc \vdash \fun{x}{e} : \tau \xrightarrow{\pc'} \sigma} \and
+  \infer*[left=app]{\Gamma \diamond \pc \vdash e_1 : (\tau \xrightarrow{\pc'} \sigma)^\ell\\ \Gamma \diamond \pc \vdash e_2 : \tau\\ \sigma \searrow \ell\\ \pc \sqsubseteq \pc'\\ \ell \sqsubseteq \pc'}{\Gamma \diamond \pc \vdash \app{e_1}{e_2} : \sigma} \\
+  \infer*[left=inl]{\Gamma \diamond \pc \vdash e : \tau}{\Gamma \diamond \pc \vdash \inl{e} : (\tau + \sigma)^\ell}\and
+  \infer*[left=inr]{\Gamma \diamond \pc \vdash e : \sigma}{\Gamma \diamond \pc \vdash \inr{e} : (\tau + \sigma)^\ell}\and
+  \infer*[left=case]{\Gamma \diamond \pc \vdash e_1 : (\tau + \sigma)^\ell\\ \Gamma, x : \tau \diamond \pc \sqcup \ell \vdash e_2 : \rho\\ \Gamma, y : \sigma \diamond \pc \sqcup \ell \vdash e_3 : \rho\\ \rho \searrow \ell}{\Gamma \diamond \pc \vdash \case{e_1}{x}{e_2}{y}{e_3} : \rho} \and
+  \infer*[left=new]{\Gamma \diamond \pc \vdash e : \tau}{\Gamma \diamond \pc \vdash \new{e} : (\ptr{\tau})^\ell}\and
+  \infer*[left=deref]{\Gamma \diamond \pc \vdash e : (\ptr{\tau})^\ell\\ \tau \searrow \ell}{\Gamma \diamond \pc \vdash \deref{e} : \tau} \and
+  \infer*[left=assign]{\Gamma \diamond \pc \vdash e_1 : (\ptr{\tau})^\ell\\ \Gamma \diamond \vdash \pc \vdash e_2 : \tau\\ \tau \searrow \pc \sqcup \ell}{\Gamma \diamond \pc \vdash \assn{e_1}{e_2} : \Unit}
+\end{mathpar}
+
+\section{Unary Relation}
+\label{sec:unary-relation}
+
+Unlike last time, we take our worlds to be maps from pointers to types.
+We then build our unary relation mutually-recursively with a semantic typing relation for heaps.
+This allows a somewhat more beautiful definition.
+
+We also use step indexing in our model.
+This not only helps us when defining semantic typing for heaps, but it also gives us something to found our recursion on when proving the fundamental theorem.
+
+$$
+\begin{array}{r@{~\triangleq~}l}
+  \mathcal{V}^u(\Unit \mathrel{@} n)(v \mathrel{@} \theta ) & v = \unit\\
+  \mathcal{V}^u(\tau \xrightarrow{\pc} \sigma \mathrel{@} n)(v \mathrel{@} \theta) & \exists x, e. v = \fun{x}{e} \land \forall \theta' \succeq \theta, m < n, v.\; \mathcal{V}(\tau \mathrel{@} m)(v \mathrel{@} \theta') \Rightarrow \mathcal{E}_\pc(\sigma \mathrel{@} m)(e[x \mapsto v] \mathrel{@} \theta')\\
+  \mathcal{V}^u(\tau + \sigma \mathrel{@} n)(v \mathrel{@} \theta) & \exists v'.\; (v = \inl{v'} \land \mathcal{V}(\tau \mathrel{@} n)(v')) \lor (v = \inr{v'} \land \mathcal{V}(\sigma \mathrel{@} n)(v'))\\
+  \mathcal{V}^u(\ptr{\tau} \mathrel{@} n)(v \mathrel{@} \theta) & \exists a. v = a \land \theta(a) = \tau\\
+  \mathcal{V}^u(A^\ell \mathrel{@} n)(v \mathrel{@} \theta) & \mathcal{V}(A \mathrel{@} n)(v \mathrel{@} \theta)\\
+  \mathcal{E}^u_\pc(\tau \mathrel{@} n)(e \mathrel{@} \theta) &
+                                                  \begin{array}[t]{l}
+                                                    \forall H. \theta \mathrel{@} n \vDash H \\
+                                                    \land \forall m < n. (H, e) \Downarrow (H', v') \Rightarrow\\
+                                                    \exists \theta' \succeq \theta. \mathcal{V}(\tau \mathrel{@} m)(v' \mathrel{@} \theta') \land\\
+                                                    (\forall a. H(a) \neq H'(a) \Rightarrow \exists \ell'. \theta(a) = A^{\ell'} \land \pc \sqsubseteq \ell') \land\\
+                                                    (\forall a \in \mathrm{dom}(\theta') \setminus \mathrm{dom}(\theta). \theta'(a) \searrow \pc)
+                                                  \end{array}\\
+  \theta \mathrel{@} n \vDash^u  H & \dom(\theta) \subseteq \dom(H) \land \forall a \in\dom(\theta).\; \mathcal{V}(\theta(a) \mathrel{@} n - 1)(H(a) \mathrel{@} \theta)
+\end{array}
+$$
+
+
+\section{Binary Relation}
+\label{sec:binary-relation}
+
+Here, each world is a triple $W = \langle \theta_1, \theta_2, \beta \rangle$, where each $\theta_i$ maps locations to types, and $\beta$ is a \emph{partial bijection} between $\dom(\theta_1)$ and $\dom(\theta_2)$.
+That is, $\beta$ witnesses that some of the locations in $\theta_1$ and $\theta_2$ are supposed to correspond with each other, but not all.
+To see why, consider the program
+$$\textsf{let}\; x = \new{0} \mathrel{\textsf{in}} \case{b}{\_}{x}{\_}{\new{1}}$$
+Here, we may either allocate a new reference or not depending on the high-security input $b$.
+Thus, we need to allow one side of the world to grow, but not the other.
+
+$$
+\begin{array}{r@{~\triangleq~}l}
+  \mathcal{V}^b_{\mathcal{A}}(\Unit \mathrel{@} n)(v \sim v' \mathrel{@} W) & v = v' = \unit\\
+  \mathcal{V}^b_{\mathcal{A}}(\tau \xrightarrow{\pc} \sigma \mathrel{@} n)(v \sim v' \mathrel{@} W) &
+                                                         \begin{array}[t]{l}
+                                                           \exists x, y, e_1, e_2. v = \fun{x}{e_1} \land v' = \fun{y}{e_2} \land\\
+                                                           (\forall W' \succeq W, m < n, v_1, v_2. \begin{array}[t]{l}\mathcal{V}_{\mathcal{A}}^b(\tau \mathrel{@} m)(v_1 \sim v_2 \mathrel{@} W') \Rightarrow\\ \mathcal{E}_{\mathcal{A}}^b(\sigma \mathrel{@} m)(e_1[x \mapsto v_1] \sim e_2[y \mapsto v_2] \mathrel{@} W')) \land\end{array} \\
+                                                           (\forall \theta \succeq W.\theta_1, m, v.\; \mathcal{V}^u(\tau \mathrel{@} m)(v \mathrel{@} \theta) \Rightarrow \mathcal{E}_\pc^u(\sigma \mathrel{@} m)(e_1[x \mapsto v] \mathrel{@} \theta)) \land\\
+                                                           (\forall \theta \succeq W.\theta_2, m, v.\; \mathcal{V}^u(\tau \mathrel{@} m)(v \mathrel{@} \theta) \Rightarrow \mathcal{E}_\pc^u(\sigma \mathrel{@} m)(e_2[y \mapsto v] \mathrel{@} \theta))\\
+                                                         \end{array}\\
+  \mathcal{V}^b_{\mathcal{A}}(\tau + \sigma \mathrel{@} n)(v \sim v' \mathrel{@} W) &
+                                         \exists v_1, v_2.\; (v = \inl{v_1} \land v' = \inl{v_2} \land \mathcal{V}_{\mathcal{A}}^b(\tau \mathrel{@} n) (v_1 \sim v_2 \mathrel{@} W)) \lor (v = \inr{v_1} \land v' = \inr{v_2} \land \mathcal{V}_{\mathcal{A}}^b(\sigma \mathrel{@} n)(v_1 \sim v_2 \mathrel{@} W))\\
+  \mathcal{V}^b_{\mathcal{A}}(\ptr{\tau} \mathrel{@} n)(v \sim v' \mathrel{@} W) &
+                                           \exists a, a'. v = a \land v' = a' \land a \mathrel{W.\beta} a' \land W.\theta_1(a) = \tau \land W.\theta_2(a') = \tau\\[1em]
+  \mathcal{V}_{\mathcal{A}}^b(A^\ell \mathrel{@} n)(v \sim v' \mathrel{@} W) & \left\{\begin{array}{ll} \mathcal{V}^b_{\mathcal{A}}(A \mathrel{@} n)(v \sim v' \mathrel{@} W) & \text{if}~\ell \sqsubseteq \mathcal{A}\\ \forall i \in \{1, 2\}. \forall m. \mathcal{V}^u(A \mathrel{@} m)(v_i \mathrel{@} W.\theta_i) & \text{otherwise} \end{array}\right.\\[3em]
+  \mathcal{E}^b_{\mathcal{A}} &
+                                \begin{array}[t]{l}
+                                  \forall H_1, H_2, m < n. W \mathrel{@} n \vDash H_1 \sim H_2 \land (H_1, e_1) \Downarrow (H_1', v_1)  \land (H_2, e_2) \Downarrow (H_2', v_2) \Rightarrow \\
+                                  \exists W' \succeq W. W' \mathrel{@} m \vDash_{\mathcal{A}} H_1' \sim H_2' \land \mathcal{V}^b(\tau \mathrel{@} m)(v_1 \sim v_2 \mathrel{@} W')
+                                \end{array}\\[3em]
+  W \mathrel{@} n \vDash_{\mathcal{A}} H_1 \sim H_2 &
+                      \begin{array}[t]{l}
+                        \dom(W.\theta_1) \subseteq \dom(H_1) \land \dom(W.\theta_2) \subseteq \dom(H_2) \land \\
+                        \forall (a_1, a_2) \in W.\beta.\; W.\theta_1(a_1) = W.\theta_2(a_2) \land\\
+                        \mathcal{V}^b_{\mathcal{A}}(W.\theta_1(a_1) \mathrel{@} n - 1)(H_1(a_1) \sim H_2(a_2) \mathrel{@} W) \land\\
+                        \forall i \in \{1,2\}.\; \forall m.\; \forall a_i \in \dom(W.\theta_i).\; \mathcal{V}^u(W.\theta_i(a_i) \mathrel{@} m)(H_i(a_i) \mathrel{@} W.\theta_i)
+                      \end{array}
+\end{array}
+$$
+
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% End:

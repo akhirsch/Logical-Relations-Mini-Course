@@ -1,0 +1,280 @@
+\documentclass{notes}
+\coursename{Logical Relations Mini-Course}
+\lecnumber{6}
+\title{Kripke Logical Relations}
+\author{Michael Piskozub}
+
+\begin{document}
+\maketitle
+
+\newcommand{\proves}{\vdash}
+
+% Expression commands
+\newcommand{\new}[2]{\textsf{new}\langle#1\rangle(#2)}
+\newcommand*{\defeq}{\mathrel{\vcenter{\baselineskip0.5ex \lineskiplimit0pt
+                     \hbox{\scriptsize.}\hbox{\scriptsize.}}}%
+                     =}
+\newcommand{\store}[2]{#1 \defeq #2}
+\newcommand{\deref}[1]{! \, #1}
+
+% Type commands
+\newcommand{\bool}{\textsf{bool}}
+\newcommand{\prodtyp}[2]{#1 \: \times \: #2}
+\newcommand{\sumtyp}[2]{#1 \: + \: #2}
+\newcommand{\arrow}[2]{#1 \: \rightarrow \: #2}
+\newcommand{\unit}{\textsf{unit}}
+\newcommand{\reftyp}[1]{\textsf{ref} \:\: #1}
+
+% Typing judgement
+\newcommand{\typing}[5]{#1; #2 \proves #3 : #4 \dashv #5}
+
+% Step
+\newcommand{\step}[4]{#1; #2 \longrightarrow #3; #4}
+
+% Logical relation
+\newcommand{\Vold}[2]{V(#1)(#2)}
+\newcommand{\Vnew}[3]{V(#1)(#2 \; @ \; #3)}
+\newcommand{\Eold}[2]{E(#1)(#2)}
+\newcommand{\Enew}[3]{E(#1)(#2 \; @ \; #3)}
+
+% Misc
+\newcommand{\dom}[1]{\textsf{dom}(#1)}
+\newcommand{\deq}{\overset{\Delta}{=}}
+\newcommand{\defas}[2]{#1 \; \deq \; #2}
+\newcommand{\deqv}{\overset{\Delta}{\iff}}
+\newcommand{\defiff}[2]{#1 \; \deqv \; #2}
+
+\section{Introduction}
+
+In today's lecture, we discussed a style of logical relations called \emph{Kripke Logical Relations}.
+Kripke Logical Relations allow us to model state, which allows us to model many types of effects.
+
+\section{Our Language}
+
+In our language, we do not have recursive types or recursive functions, but by virtue of having state, we can write programs that do not terminate.
+
+\begin{syntax}
+  \category[Expressions]{e}
+  % Each alternative is introduced on its own line.
+  \alternative{...}
+  \alternative{\ell}
+  \alternative{\new{\tau}{e}}
+  \alternative{\store{e}{e}}
+  \alternative{\deref{e}}
+
+  % You can add vertical spacing between categories to visually group them.
+  % \separate
+  % You can pass the amount of space explicitly if you want to manually control it:
+  % \separate[5ex]
+
+  \category[Values]{v}
+  \alternative{...}
+  \alternative{\ell}
+
+  \category[Types]{\tau}
+  \alternative{\bool}
+  \alternative{\prodtyp{\tau_1}{\tau_2}}
+  \alternative{\sumtyp{\tau_1}{\tau_2}}
+  \alternative{\arrow{\tau_1}{\tau_2}}
+  \alternative{\unit}
+  \alternative{\reftyp{\tau}}
+\end{syntax}
+
+\vspace{0.1in}
+
+Typing judgements have the form: $\typing{\Gamma}{\Theta}{e}{\tau}{\Theta'}$, where $\Theta$ maps locations to types.
+
+\begin{mathpar}
+  \infer[T-Loc]{\ell : \tau \in \Theta}{\typing{\Gamma}{\Theta}{\ell}{\reftyp{\tau}}{\Theta'}} \and
+  \infer[T-New]{
+    \typing{\Gamma}{\Theta}{e}{\tau}{\Theta'}
+  }{
+    \typing{\Gamma}{\Theta}{\new{\tau}{e}}{\reftyp{\tau}}{\Theta', \ell : \tau}
+  } \and
+  \infer[T-Store]{
+    \typing{\Gamma}{\Theta_1}{e_1}{\reftyp{\tau}}{\Theta_2} \\
+    \typing{\Gamma}{\Theta_2}{e_2}{\tau}{\Theta_3}
+  }{
+    \typing{\Gamma}{\Theta_1}{\store{e_1}{e_2}}{\unit}{\Theta_3}
+  } \and
+  \infer[T-Deref]{
+    \typing{\Gamma}{\Theta}{e}{\reftyp{\tau}}{\Theta'}
+  }{
+    \typing{\Gamma}{\Theta}{\deref{e}}{\tau}{\Theta'}
+  }
+\end{mathpar}
+
+The operational semantics of our language are defined as follows.
+Note that $\theta$ maps locations to values.
+
+\begin{mathpar}
+  \infer[S-New]{
+    \ell \notin \dom{\theta}
+  }{
+    \step{\theta}{\new{\tau}{v}}{\theta}{\ell \mapsto v; \ell}
+  } \and
+  \infer[S-Store]{
+    \ell \in \dom{\theta}
+  }{
+    \step{\theta}{\store{\ell}{v}}{\theta, \ell \mapsto v}{()}
+  } \and
+  \infer[S-Deref]{
+    \theta(\ell) = v
+  }{
+    \step{\theta}{\deref{\ell}}{\theta}{v}
+  }
+\end{mathpar}
+
+Note that we can model recursive functions using state.
+Hence, we will have to deal with expressions that do not terminate.
+
+For example, consider the following program:
+\begin{quote}
+  \verb|let f = new<int->int>(|$\lambda$\verb|x.x) in| \\
+  \verb|let g = |$\lambda$\verb|x.(!f) x in| \\
+  \verb|f := g; g 42|
+\end{quote}
+
+This program does not terminate because the call to \verb|g| keeps calling itself recursively forever.
+
+\section{First Attempt at a Logical Relation}
+
+A first attempt at a logical relations model for our language might look as follows. \\ \\
+First, the value relation:
+
+\begin{mathpar}
+  \defas{\Vold{\reftyp{\tau}}{v}}{\exists \ell . \; v = \ell} \\
+\end{mathpar}
+This says that $v$ is a location, but we do not make any guarantees about what is at that location. \\ \\
+The expression relation might look like:
+
+\begin{mathpar}
+  \defas{\Eold{\tau}{e}}{\forall v . \; e \downarrow v \Rightarrow \Vold{\tau}{v}}
+\end{mathpar}
+However, we are not given any information about the state at expression $e$.
+Hence, we need something more for our logical relation.
+
+\section{Kripke Logical Relation}
+
+Saul Kripke was interested in the question: what does it mean to know something?
+Mathematicians and philosophers already had a good idea of what it meant to know whether something is true in some model, but did not know how to model knowledge.
+Kripke modeled knowledge in terms of \emph{worlds}.
+
+For example, consider someone, call him Andrew, knows that it is raining in Buffalo, New York, but knows nothing about the weather in Madison, Wisconsin.
+A world in which it is raining in Buffalo and sunny in Madison, versus a world in which it is raining in Buffalo and raining in Madison are equally plausible to Andrew.
+Andrew does not know which of those two worlds he is in.
+
+Kripke modeled knowledge as follows.
+If you have an equivalence class of worlds that you believe in, and something is true in all of those worlds, then you know it. \\
+
+\subsection{Kripke Worlds}
+
+We introduce the following new notation: $W \leq W'$.
+Informally, this says: "If I'm in world $W$, then $W'$ can be a possible future world."
+
+However, we still have not defined what a world actually is.
+It turns out that the notion of a world is different for unary vs. binary logical relations.
+
+\subsubsection{Unary Case}
+
+Define world as $\theta$. \\
+
+$\defiff{\theta \leq \theta'}{\theta \subseteq \theta'}$
+
+\subsubsection{Binary Case}
+
+A world is a triple $\langle \theta_1, \theta_2, \cong \rangle$ where $\cong$ is the isomorphism $\dom{\theta_1} \leftrightarrow \dom{\theta_2}$. \\
+
+$\defiff{W \leq W}{
+  (W.\theta_1 \subseteq W'.\theta_1) \; \land \; (W.\theta_2 \subseteq W'.\theta_2) \; \land \; (W.\cong \subseteq W'.\cong)
+}$
+
+\subsubsection{Unary Logical Relation}
+
+We can now define the unary logical relation.
+
+\begin{equation}
+  \defas{
+    \Vnew{\reftyp{\tau}}{v}{\theta}
+  }{
+    \exists \ell . \; v = \ell \; \land \; \Vold{\tau}{\theta(\ell)}
+  }
+\end{equation}
+
+\begin{equation}
+  \defas{
+    \Vnew{\arrow{\tau}{\sigma}}{v}{\theta}
+  }{
+    \exists x, e . \; v = \lambda x . e \; \land \; (\forall \theta' \geq \theta . \forall v' . \; \Vnew{\tau}{v'}{\theta} \Rightarrow \Enew{\sigma}{e[x \mapsto v]}{\theta'})
+  }
+\end{equation}
+
+\begin{nb}
+  The value relation on the arrow type is required or else we get stuck in the application case of the fundamental theorem.
+\end{nb}
+
+\begin{equation}
+  \begin{aligned}
+    \Enew{\tau}{e}{\theta} \deq \; & ((\exists \theta' , e' . \; \theta; e \longrightarrow \theta'; e') \\
+    & \land \; (\forall \theta', e' . \; \theta; e \longrightarrow \theta'; e' \Rightarrow \theta \leq \theta' \; \land \; \Enew{\tau}{e'}{\theta'})) \\
+    & \lor \; \Vnew{\tau}{e}{\theta}
+  \end{aligned}
+\end{equation}
+
+The expression relation above can be equivalently defined as:
+
+\begin{equation}
+  \begin{aligned}
+    \Enew{\tau}{e}{\theta} \deq \; & ((\exists \theta' , v . \; \theta; e \downarrow \theta'; v) \\
+    & \land \; (\forall \theta', v . \; \theta; e \downarrow \theta'; v \Rightarrow \Vnew{\tau}{e}{\theta})) \\
+    & \lor \; \theta;e \uparrow
+  \end{aligned}
+\end{equation}
+
+\subsubsection{Binary Logical Relation}
+
+The binary logical relation can be defined as follows.
+
+\begin{equation}
+  \begin{aligned}
+    \Vnew{\arrow{\tau}{\sigma}}{v \sim v'}{W} \deq \; & \exists x, y, e_1, e_2 . \; v = \lambda x . e_1 \; \land \; v' = \lambda y . e_2 \\
+    & \land \forall W' \geq W. \forall v_1, v_2. \Vnew{\tau}{v_1 \sim v_2}{W} \Rightarrow \Enew{\sigma}{e_1[x \mapsto v_1] \sim e_2[y \mapsto v_2]}{W'}
+  \end{aligned}
+\end{equation}
+
+\begin{equation}
+  \begin{aligned}
+    \Vnew{\reftyp{\tau}}{v_1 \sim v_2}{W} \deq \; & \exists \ell_1, \ell_2 . \; \ell_1 \; W.\cong \; \ell_2 \\
+    & \land \; \Vnew{\tau}{W.\theta_1(\ell_1) \sim W.\theta_2(\ell_2)}{W}
+  \end{aligned}
+\end{equation}
+
+\begin{equation}
+  \begin{aligned}
+    \Enew{\tau}{e_1 \sim e_2}{W} \deq \; & \Vnew{\tau}{e_1 \sim e_2}{W} \\
+    & \lor \; (
+      (\exists e_1', e_2', W' \geq W . \; W.\theta_1; e_1 \longrightarrow W'.\theta_1; e_1' \; \land \; W.\theta_2; e_2 \longrightarrow W'.\theta_2; e'_2) \\
+      & \; \; \; \; \; \; \; \land \; (\forall e'_1, e'_2, W' \geq W . \; W.\theta_1; e_1 \longrightarrow W'.\theta_1; e'_1 \; \land \; W.\theta_2; e_2 \longrightarrow W'.\theta_2 e'_2 \Rightarrow \Enew{\tau}{e'_1 \sim e'_2}{W'})
+    )
+  \end{aligned}
+\end{equation}
+
+\vspace{0.1in}
+
+However, the above definition of the expression relation is quite strong.
+For instance, \verb|(|$\lambda$\verb|x.42) 5|\;$\sim$\;\verb|42| is not in the above expression relation. \\ \\
+A more flexible variant of the expression relation is as follows:
+
+\begin{equation}
+  \begin{aligned}
+    E'(\tau)(e_1 \sim e_2 \; @ \; W) \deq \; & (
+      (\exists v_1', v_2', W' \geq W . \; W.\theta_1; e_1 \downarrow W'.\theta_2; v_1' \; \land \; W.\theta_2; e_2 \downarrow W'.\theta_2; v'_2) \\
+      & \land \; (\forall v'_1, v'_2, W' \geq W . \; W.\theta_1; e_1 \downarrow W'.\theta_1; v'_1 \; \land \; W.\theta_2; e_2 \downarrow W'.\theta_2 v'_2 \Rightarrow \Vnew{\tau}{v'_1 \sim v'_2}{W'})
+    ) \\
+    & \lor \; (W.\theta_1; e_1 \uparrow \; \land \; W.\theta_2; e_2 \uparrow)
+  \end{aligned}
+\end{equation}
+
+In this case, \verb|(|$\lambda$\verb|x.42) 5|\;$\sim$\;\verb|42| is in the expression relation $E'$.
+
+\end{document}

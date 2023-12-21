@@ -261,9 +261,9 @@ The binary logical relation can be defined as follows.
 
 \vspace{0.1in}
 
-However, the above definition of the expression relation is quite strong.
-For instance, \verb|(|$\lambda$\verb|x.42) 5|\;$\sim$\;\verb|42| is not in the above expression relation. \\ \\
-A more flexible variant of the expression relation is as follows:
+However, the above definition of the expression relation is too strong.
+For instance, \verb|(|$\lambda$\verb|x.42) 5|\;$\sim$\;\verb|42| is not in the above expression relation, since they take a different number of steps to reach the answer \verb|5|. \\ \\
+A more flexible (and hence more correct) variant of the expression relation is as follows:
 
 \begin{equation}
   \begin{aligned}
@@ -278,3 +278,7 @@ A more flexible variant of the expression relation is as follows:
 In this case, \verb|(|$\lambda$\verb|x.42) 5|\;$\sim$\;\verb|42| is in the expression relation $E'$.
 
 \end{document}
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% End:
